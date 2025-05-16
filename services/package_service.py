@@ -8,7 +8,6 @@ This service manages:
 - Package search
 - AUR interactions
 """
-
 import asyncio
 from typing import List, Optional
 from models.package import Package

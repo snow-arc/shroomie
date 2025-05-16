@@ -14,13 +14,20 @@ from PyQt6.QtCore import Qt
 from models.package import Package
 from utils.themes.colors import ThemeColors
 from utils.themes.fonts import Fonts
+from services.aur_storage import AurPackageStorage  # Add this import
 
 class DeletePage(QWidget):
     """Package deletion page with search functionality"""
     
     def __init__(self):
         super().__init__()
-        self.all_packages = [Package(f"Package {i}", f"1.{i}.0", "main") for i in range(8)]
+        self.aur_storage = AurPackageStorage()
+        # Load real packages from storage
+        stored_packages = self.aur_storage.get_all_packages()
+        self.all_packages = [
+            Package(name, data["version"], data.get("description", ""))
+            for name, data in stored_packages.items()
+        ]
         self.displayed_packages = self.all_packages.copy()
         self.initUI()
         
@@ -274,8 +281,12 @@ class DeletePage(QWidget):
 
     def delete_package(self, item, package_name):
         """Handle package deletion"""
-        # Here you would add actual package deletion logic
-        item.setParent(None)  # Remove from UI
+        # Remove from storage
+        self.aur_storage.remove_package(package_name)
+        
+        # Remove from UI
+        item.setParent(None)
+        
         # Update package lists
         self.all_packages = [pkg for pkg in self.all_packages if pkg.name != package_name]
         self.displayed_packages = [pkg for pkg in self.displayed_packages if pkg.name != package_name]
