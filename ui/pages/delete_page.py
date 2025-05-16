@@ -9,18 +9,21 @@ Features:
 """
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QScrollArea, 
-                            QPushButton, QHBoxLayout, QLineEdit)
-from PyQt6.QtCore import Qt
+                            QPushButton, QHBoxLayout, QLineEdit, QMessageBox)
+from PyQt6.QtCore import Qt, QProcess
 from models.package import Package
 from utils.themes.colors import ThemeColors
 from utils.themes.fonts import Fonts
 from services.aur_storage import AurPackageStorage  # Add this import
+from services.page_communicator import PageCommunicator
 
 class DeletePage(QWidget):
     """Package deletion page with search functionality"""
     
     def __init__(self):
         super().__init__()
+        self.communicator = PageCommunicator.instance()  # Use instance method
+        self.communicator.refreshNeeded.connect(self.refresh_packages)
         self.aur_storage = AurPackageStorage()
         # Load real packages from storage
         stored_packages = self.aur_storage.get_all_packages()
@@ -281,12 +284,77 @@ class DeletePage(QWidget):
 
     def delete_package(self, item, package_name):
         """Handle package deletion"""
-        # Remove from storage
-        self.aur_storage.remove_package(package_name)
+        # Confirm deletion
+        confirm = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to remove {package_name}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
         
-        # Remove from UI
-        item.setParent(None)
-        
-        # Update package lists
-        self.all_packages = [pkg for pkg in self.all_packages if pkg.name != package_name]
-        self.displayed_packages = [pkg for pkg in self.displayed_packages if pkg.name != package_name]
+        if confirm == QMessageBox.StandardButton.Yes:
+            # Show deletion dialog
+            self.delete_dialog = QWidget()
+            self.delete_dialog.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+            self.delete_dialog.setStyleSheet(f"""
+                background: {ThemeColors.DARK};
+                border: 4px solid {ThemeColors.WARNING};
+                border-radius: 15px;
+            """)
+            
+            dialog_layout = QVBoxLayout(self.delete_dialog)
+            msg = QLabel(f"Removing {package_name}...")
+            msg.setStyleSheet(f"""
+                font-family: {Fonts.DECORATIVE};
+                font-size: {Fonts.LARGE}px;
+                color: {ThemeColors.WARNING};
+            """)
+            msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            dialog_layout.addWidget(msg)
+            
+            self.delete_dialog.setFixedSize(300, 100)
+            self.delete_dialog.show()
+            
+            # Start deletion process
+            self.process = QProcess()
+            self.process.finished.connect(
+                lambda: self.handle_deletion_complete(item, package_name)
+            )
+            self.process.start('yay', ['-Rdd', '--noconfirm', package_name])
+
+    def refresh_packages(self):
+        """Refresh package list"""
+        stored_packages = self.aur_storage.get_all_packages()
+        self.all_packages = [
+            Package(name, data["version"], data.get("description", ""))
+            for name, data in stored_packages.items()
+        ]
+        self.displayed_packages = self.all_packages.copy()
+        self.display_packages()
+
+    def handle_deletion_complete(self, item, package_name):
+        """Handle package deletion completion"""
+        if self.process.exitCode() == 0:
+            try:
+                # Remove from storage
+                self.aur_storage.remove_package(package_name)
+                
+                # Notify other pages to refresh
+                self.communicator.packageDeleted.emit(package_name)
+                self.communicator.request_refresh()
+                
+                # Update UI
+                self.refresh_packages()
+                
+                # Close dialog
+                if hasattr(self, 'delete_dialog'):
+                    self.delete_dialog.close()
+                    
+                QMessageBox.information(self, "Success", f"{package_name} was successfully removed!")
+            except Exception as e:
+                print(f"Error completing deletion: {e}")
+        else:
+            error = self.process.readAllStandardError().data().decode()
+            QMessageBox.critical(self, "Error", f"Failed to remove {package_name}\n{error}")
+            if hasattr(self, 'delete_dialog'):
+                self.delete_dialog.close()

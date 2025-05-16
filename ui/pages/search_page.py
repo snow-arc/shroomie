@@ -4,45 +4,118 @@ Provides real-time package search functionality.
 """
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
-                            QPushButton, QScrollArea, QLabel)
-from PyQt6.QtCore import Qt
+                            QPushButton, QScrollArea, QLabel, QMessageBox)
+from PyQt6.QtCore import Qt, QProcess, pyqtSignal, QTimer
+import pexpect
+import sys
 import subprocess
 from models.package import Package
 from utils.themes.colors import ThemeColors
 from utils.themes.fonts import Fonts
+from ui.dialogs.install_dialog import InstallDialog
+from ui.dialogs.password_dialog import PasswordDialog
+from services.aur_storage import AurPackageStorage
+from services.auth_manager import AuthManager
+from services.sudo_auth import SudoAuth
+from services.page_communicator import PageCommunicator
+
+class PackageProcess(QProcess):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self.dialog = None
+        
+    def start_installation(self, pkg_name, is_official):
+        """Start the installation process"""
+        if is_official:
+            self.start('sudo', ['pacman', '-S', '--noconfirm', pkg_name])
+        else:
+            self.start('yay', ['-S', '--noconfirm', pkg_name])
 
 class SearchPage(QWidget):
     def __init__(self):
         super().__init__()
+        self.sudo_auth = SudoAuth()
+        self.communicator = PageCommunicator.instance()  # Use instance method
+        
+        if not self.sudo_auth.authenticate(self):
+            sys.exit(1)
+        
         self.page_size = 200
         self.current_page = 0
+        self.aur_storage = AurPackageStorage()  # Move this up
+        self.auth_manager = AuthManager()
+        
+        # Update and fetch packages
+        self.update_package_database()
         self.all_packages = self.fetch_packages()
         self.displayed_packages = self.all_packages[:self.page_size]
         self.initUI()
+        
+        # Connect to signals
+        self.communicator.packageDeleted.connect(self.handle_package_deleted)
+        self.communicator.packageUpdated.connect(self.refresh_package_list)
+        self.communicator.refreshNeeded.connect(self.refresh_packages)
+
+    def update_package_database(self):
+        """Update package database before fetching"""
+        try:
+            # Update official repos
+            subprocess.run(['sudo', 'pacman', '-Sy'], check=True)
+            # Update AUR
+            subprocess.run(['yay', '-Sy'], check=True)
+        except Exception as e:
+            print(f"Error updating package database: {e}")
     
     def fetch_packages(self):
         """Fetch packages using yay command"""
         try:
-            result = subprocess.run(['yay', '-Ss', ''], capture_output=True, text=True)
+            # Get installed packages first
+            installed_packages = set(self.aur_storage.get_all_packages().keys())
+            
+            # Fetch all available packages
+            result = subprocess.run(['yay', '-Ss'], 
+                                 capture_output=True, 
+                                 text=True,
+                                 check=True)
+            
             packages = []
             current_pkg = None
             
             for line in result.stdout.split('\n'):
-                if line.startswith('    '): # Description line
-                    if current_pkg:
+                if not line:  # Skip empty lines
+                    continue
+                    
+                if line.startswith('    '):  # Description line
+                    if current_pkg and current_pkg.name not in installed_packages:
                         current_pkg.description = line.strip()
                 else:
-                    parts = line.split('/')
-                    if len(parts) >= 2:
-                        repo_pkg = parts[1].split()
-                        if len(repo_pkg) >= 2:
-                            name = repo_pkg[0]
-                            version = repo_pkg[1]
-                            repo = parts[0]
-                            current_pkg = Package(name, version, repo)
-                            packages.append(current_pkg)
+                    try:
+                        parts = line.split('/')
+                        if len(parts) >= 2:
+                            repo_pkg = parts[1].split()
+                            if len(repo_pkg) >= 2:
+                                name = repo_pkg[0]
+                                
+                                # Skip if already installed
+                                if name in installed_packages:
+                                    current_pkg = None
+                                    continue
+                                    
+                                version = repo_pkg[1]
+                                repo = parts[0]
+                                current_pkg = Package(name, version, repo)
+                                packages.append(current_pkg)
+                    except Exception as e:
+                        print(f"Error parsing line '{line}': {e}")
+                        current_pkg = None
+                        continue
             
             return packages
+            
+        except subprocess.CalledProcessError as e:
+            print(f"Error running yay: {e}")
+            return []
         except Exception as e:
             print(f"Error fetching packages: {e}")
             return []
@@ -314,10 +387,93 @@ class SearchPage(QWidget):
                 color: {ThemeColors.DARK};
             }}
         """)
+        install_btn.clicked.connect(lambda: self.install_package(pkg))
 
         layout.addWidget(info, stretch=1)
         layout.addWidget(install_btn)
         self.packages_layout.addWidget(item)
+
+    def install_package(self, pkg):
+        """Install the selected package"""
+        try:
+            # Check if package is from official repos
+            is_official = pkg.repo in ['core', 'extra']
+            
+            # Create and configure process
+            self.install_process = QProcess(self)  # Set parent
+            self.install_process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+            
+            # Connect signals
+            self.install_process.readyReadStandardOutput.connect(self.handle_process_output)
+            self.install_process.finished.connect(
+                lambda code, _: self.handle_installation_complete(code == 0, pkg)
+            )
+            
+            # Show installation dialog
+            self.install_dialog = InstallDialog(pkg.name, self)
+            self.install_dialog.show()
+            
+            # Start installation
+            cmd = ['sudo', 'pacman', '-S', '--noconfirm', pkg.name] if is_official else ['yay', '-S', '--noconfirm', pkg.name]
+            self.install_process.start(cmd[0], cmd[1:])
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
+    
+    def handle_process_output(self):
+        """Handle process output in real-time"""
+        if hasattr(self, 'install_process'):
+            try:
+                output = self.install_process.readAllStandardOutput().data().decode()
+                print(output)  # For debugging
+                
+                if "error" in output.lower():
+                    self.install_dialog.close()
+                    QMessageBox.critical(self, "Installation Error", output)
+                elif "successfully installed" in output.lower():
+                    self.install_dialog.show_success()
+            except Exception as e:
+                print(f"Error handling output: {e}")
+    
+    def handle_installation_complete(self, success, pkg):
+        """Handle installation completion"""
+        if success:
+            # Update AUR storage
+            if pkg.repo not in ['core', 'extra']:
+                self.aur_storage.update_package(
+                    pkg.name,
+                    pkg.version,
+                    pkg.description
+                )
+            
+            # Notify other pages to refresh
+            self.communicator.packageInstalled.emit(pkg.name)
+            self.communicator.request_refresh()
+            
+            # Update own display
+            self.refresh_packages()
+            
+            self.install_dialog.show_success()
+        else:
+            QMessageBox.critical(self, "Installation Error", 
+                               "Failed to install package")
+            self.install_dialog.close()
+                
+        try:
+            # Cleanup
+            if hasattr(self, 'install_process'):
+                self.install_process.deleteLater()
+            if hasattr(self, 'install_dialog'):
+                QTimer.singleShot(2000, self.install_dialog.close)
+        except Exception as e:
+            print(f"Error in installation completion: {e}")
+            QMessageBox.critical(self, "Error", str(e))
+
+    def refresh_packages(self):
+        """Refresh package list"""
+        self.all_packages = self.fetch_packages()
+        self.displayed_packages = self.all_packages[:self.page_size]
+        self.display_packages()
 
     def load_more_packages(self):
         """Load next page of packages"""
@@ -325,4 +481,17 @@ class SearchPage(QWidget):
         start_idx = self.current_page * self.page_size
         end_idx = min(start_idx + self.page_size, len(self.all_packages), 1000)
         self.displayed_packages = self.all_packages[:end_idx]
+        self.display_packages()
+    
+    def handle_package_deleted(self, package_name):
+        """Handle when a package is deleted"""
+        try:
+            self.refresh_package_list()
+        except Exception as e:
+            print(f"Error handling deleted package: {e}")
+    
+    def refresh_package_list(self):
+        """Refresh the package list"""
+        self.all_packages = self.fetch_packages()
+        self.displayed_packages = self.all_packages[:self.page_size]
         self.display_packages()
