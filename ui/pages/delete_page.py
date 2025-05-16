@@ -229,6 +229,7 @@ class DeletePage(QWidget):
     def add_package_item(self, pkg):
         """Create and add a package item to the list"""
         item = QWidget()
+        item.setMaximumHeight(80)  # Limit height
         item.setStyleSheet(f"""
             QWidget {{
                 background: {ThemeColors.MEDIUM};
@@ -247,6 +248,8 @@ class DeletePage(QWidget):
 
         # Package info with pixel border
         info = QLabel(f"📦 {pkg.name} (v{pkg.version})")
+        info.setMaximumWidth(250)  # Limit width
+        info.setWordWrap(True)
         info.setStyleSheet(f"""
             font-family: {Fonts.DECORATIVE};
             font-size: {Fonts.MEDIUM}px;
@@ -306,13 +309,20 @@ class DeletePage(QWidget):
             msg = QLabel(f"Removing {package_name}...")
             msg.setStyleSheet(f"""
                 font-family: {Fonts.DECORATIVE};
-                font-size: {Fonts.LARGE}px;
+                font-size: {Fonts.MEDIUM}px;
                 color: {ThemeColors.WARNING};
+                padding: 5px;
+                margin: 5px;
+                background: {ThemeColors.DARK};
+                border: 2px solid {ThemeColors.LIGHT};
+                border-radius: 5px;
             """)
+            msg.setWordWrap(True)
+            msg.setMaximumWidth(300)
             msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
             dialog_layout.addWidget(msg)
             
-            self.delete_dialog.setFixedSize(300, 100)
+            self.delete_dialog.setFixedSize(350, 150)
             self.delete_dialog.show()
             
             # Start deletion process

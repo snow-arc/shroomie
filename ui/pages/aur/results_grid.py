@@ -11,7 +11,7 @@ from utils.themes.colors import ThemeColors
 from utils.themes.fonts import Fonts
 from models.package import Package
 
-class ResultsGrid(QWidget):
+class ResultsGrid(QScrollArea):
     """Grid display for AUR package results."""
     
     def __init__(self) -> None:
@@ -87,8 +87,52 @@ class ResultsGrid(QWidget):
         for i, pkg in enumerate(packages):
             row = i // 2
             col = i % 2
-            card = PackageCard(pkg, show_install_button=False)
+            card = self.create_package_card(pkg)
             self.grid.addWidget(card, row, col)
+    
+    def create_package_card(self, pkg):
+        card = QWidget()
+        card.setFixedSize(280, 100)  # تعديل الحجم ليكون أصغر
+        card.setStyleSheet(f"""
+            QWidget {{
+                background: {ThemeColors.MEDIUM};
+                border: 2px solid {ThemeColors.LIGHT};
+                border-radius: 8px;
+                padding: 10px;
+            }}
+            QWidget:hover {{
+                border-color: {ThemeColors.HIGHLIGHT};
+                background: {ThemeColors.DARK};
+            }}
+        """)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setSpacing(5)
+
+        # Package name
+        name = QLabel(f"📦 {pkg.name}")
+        name.setStyleSheet(f"""
+            font-family: {Fonts.DECORATIVE};
+            font-size: {Fonts.MEDIUM}px;
+            color: {ThemeColors.TEXT};
+            background: {ThemeColors.DARK};
+            border-radius: 4px;
+            padding: 5px;
+        """)
+        name.setWordWrap(True)
+
+        # Version
+        version = QLabel(f"Version: {pkg.version}")
+        version.setStyleSheet(f"""
+            font-family: {Fonts.DECORATIVE};
+            font-size: {Fonts.SMALL}px;
+            color: {ThemeColors.TEXT};
+        """)
+
+        layout.addWidget(name)
+        layout.addWidget(version)
+        return card
     
     def _show_no_results(self) -> None:
         """Display no results message."""

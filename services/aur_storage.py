@@ -36,12 +36,13 @@ class AurPackageStorage:
         except (json.JSONDecodeError, FileNotFoundError):
             return {}
     
-    def update_package(self, name: str, version: str, description: str) -> None:
+    def update_package(self, name: str, version: str, description: str, repo: str = "AUR") -> None:
         """Update or add a package in storage."""
         packages = self._load_packages()
         packages[name] = {
             "version": version,
             "description": description,
+            "repo": repo,
             "install_date": datetime.now().isoformat(),
             "last_updated": datetime.now().isoformat()
         }

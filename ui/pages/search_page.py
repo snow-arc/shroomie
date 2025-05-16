@@ -336,51 +336,53 @@ class SearchPage(QWidget):
             self.packages_layout.addWidget(show_more)
 
     def add_package_item(self, pkg):
-        """Create and add a package item to the list"""
         item = QWidget()
-        item.setStyleSheet(f"""
-            QWidget {{
-                background: {ThemeColors.MEDIUM};
-                border: 3px solid {ThemeColors.LIGHT};
-                border-radius: 8px;
-                padding: 12px;
-            }}
-            QWidget:hover {{
-                border-color: {ThemeColors.HIGHLIGHT};
-                background: {ThemeColors.DARK};
-            }}
-        """)
-
+        item.setFixedHeight(80)  # ارتفاع ثابت أصغر
+        
         layout = QHBoxLayout(item)
-        layout.setContentsMargins(15, 8, 15, 8)
+        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setSpacing(10)
 
-        # Package info with pixel border
-        info = QLabel(f"📦 {pkg.name} (v{pkg.version})")
-        if pkg.description:
-            info.setToolTip(pkg.description)
-        info.setStyleSheet(f"""
+        # Package info container
+        info_container = QWidget()
+        info_layout = QVBoxLayout(info_container)
+        info_layout.setContentsMargins(5, 2, 5, 2)
+        info_layout.setSpacing(2)
+
+        # Package name
+        name_label = QLabel(pkg.name)
+        name_label.setStyleSheet(f"""
             font-family: {Fonts.DECORATIVE};
-            font-size: {Fonts.MEDIUM}px;
-            color: {ThemeColors.TEXT};
+            font-size: {Fonts.SMALL}px;
+            color: {ThemeColors.HIGHLIGHT};
             background: {ThemeColors.DARK};
-            border: 2px solid {ThemeColors.LIGHT};
+            padding: 4px 8px;
             border-radius: 4px;
-            padding: 8px 15px;
+        """)
+        name_label.setWordWrap(True)
+
+        # Version info
+        version_label = QLabel(f"Version: {pkg.version}")
+        version_label.setStyleSheet(f"""
+            font-family: {Fonts.DECORATIVE};
+            font-size: {Fonts.SMALL}px;
+            color: {ThemeColors.TEXT};
         """)
 
-        # Install button with highlight colors
+        info_layout.addWidget(name_label)
+        info_layout.addWidget(version_label)
+
+        # Install button
         install_btn = QPushButton("⬇️ Install")
-        install_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        install_btn.setFixedSize(90, 40)  # حجم ثابت أصغر
         install_btn.setStyleSheet(f"""
             QPushButton {{
                 font-family: {Fonts.DECORATIVE};
-                font-size: {Fonts.MEDIUM}px;
+                font-size: {Fonts.SMALL}px;
                 color: {ThemeColors.HIGHLIGHT};
-                background: transparent;
-                border: 3px solid {ThemeColors.HIGHLIGHT};
+                background: {ThemeColors.DARK};
+                border: 2px solid {ThemeColors.HIGHLIGHT};
                 border-radius: 6px;
-                padding: 8px 16px;
-                min-width: 120px;
             }}
             QPushButton:hover {{
                 background: {ThemeColors.HIGHLIGHT};
@@ -389,8 +391,22 @@ class SearchPage(QWidget):
         """)
         install_btn.clicked.connect(lambda: self.install_package(pkg))
 
-        layout.addWidget(info, stretch=1)
+        layout.addWidget(info_container, stretch=1)
         layout.addWidget(install_btn)
+        
+        # Container style
+        item.setStyleSheet(f"""
+            QWidget {{
+                background: {ThemeColors.MEDIUM};
+                border: 2px solid {ThemeColors.LIGHT};
+                border-radius: 8px;
+            }}
+            QWidget:hover {{
+                border-color: {ThemeColors.HIGHLIGHT};
+                background: {ThemeColors.DARK};
+            }}
+        """)
+        
         self.packages_layout.addWidget(item)
 
     def install_package(self, pkg):
@@ -400,10 +416,7 @@ class SearchPage(QWidget):
             is_official = pkg.repo in ['core', 'extra']
             
             # Create and configure process
-            self.install_process = QProcess(self)  # Set parent
-            self.install_process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
-            
-            # Connect signals
+            self.install_process = PackageProcess(self)
             self.install_process.readyReadStandardOutput.connect(self.handle_process_output)
             self.install_process.finished.connect(
                 lambda code, _: self.handle_installation_complete(code == 0, pkg)
@@ -413,13 +426,12 @@ class SearchPage(QWidget):
             self.install_dialog = InstallDialog(pkg.name, self)
             self.install_dialog.show()
             
-            # Start installation
-            cmd = ['sudo', 'pacman', '-S', '--noconfirm', pkg.name] if is_official else ['yay', '-S', '--noconfirm', pkg.name]
-            self.install_process.start(cmd[0], cmd[1:])
+            # Start installation with delay
+            QTimer.singleShot(100, lambda: self.install_process.start_installation(pkg.name, is_official))
             
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
-    
+
     def handle_process_output(self):
         """Handle process output in real-time"""
         if hasattr(self, 'install_process'):
