@@ -1,6 +1,12 @@
+import os
+import sys
+
+# Add project root to Python path for absolute imports
+project_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_root)
+
 from PyQt6.QtWidgets import QApplication
 from ui.main_window import MainWindow
-import sys
 import logging
 from utils.themes.colors import ThemeColors
 
