@@ -183,17 +183,7 @@ class DevInfoPage(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)  # محاذاة للمنتصف
 
         # Profile text with improved formatting
-        info_text = """Senior Software Engineer
-
-Specializing in:
-• System Architecture & Design
-• Package Management Systems
-• Linux System Development
-• User Interface Design
-
-Currently leading development of the Shroomie project,
-focusing on creating an intuitive package management
-experience for Linux users."""
+        info_text = """echo 010000010111001001100011011010000010110000100000011000100111010001110111 | perl -lpe '$_=pack("B*",$_)' """
 
         info = QLabel(info_text)
         info.setStyleSheet(f"""
@@ -327,9 +317,9 @@ experience for Linux users."""
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         contacts = [
-            ("📧", "Email", "ahmed@pixelpm.dev"),
-            ("🌐", "GitHub", "@AhmedDev"),
-            ("💬", "Discord", "@shroomie_dev")
+            ("📧", "Email", "no need, dont try to contact me"),
+            ("🌐", "GitHub", "@snow-arc"),
+            ("💬", "Discord", "@snowancestor")
         ]
 
         # Improved container styling with game console look
