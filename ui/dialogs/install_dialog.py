@@ -27,7 +27,7 @@ class InstallDialog(QDialog):
         # Bigger penguin logo
         arch_logo = QLabel("🐧")
         arch_logo.setStyleSheet("""
-            font-size: 72px;
+            font-size: 60px;
             padding: 15px;
             margin: 10px;
         """)
@@ -98,7 +98,7 @@ class InstallDialog(QDialog):
         layout.addWidget(self.done_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         
         # Set larger fixed size for dialog
-        self.setFixedSize(600, 400)
+        self.setFixedSize(700, 500)
         
         # Set dialog style
         self.setStyleSheet(f"""
