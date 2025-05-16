@@ -269,10 +269,10 @@ class DeletePage(QWidget):
                 font-size: {Fonts.MEDIUM}px;
                 color: {ThemeColors.WARNING};
                 background: transparent;
-                border: 3px solid {ThemeColors.WARNING};
-                border-radius: 6px;
-                padding: 8px 16px;
-                min-width: 120px;
+                border: 2px solid {ThemeColors.WARNING};
+                border-radius: 4px;
+                padding: 4px 12px;
+                min-width: 90px;
             }}
             QPushButton:hover {{
                 background: {ThemeColors.WARNING};

@@ -18,7 +18,7 @@ class PasswordDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Icon and message
-        msg = QLabel("🔒 Enter your password to install package")
+        msg = QLabel("🔒 Enter your password to perform administrative tasks")
         msg.setStyleSheet(f"""
             font-family: {Fonts.DECORATIVE};
             font-size: {Fonts.MEDIUM}px;

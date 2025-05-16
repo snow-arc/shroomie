@@ -374,7 +374,7 @@ class SearchPage(QWidget):
 
         # Install button
         install_btn = QPushButton("⬇️ Install")
-        install_btn.setFixedSize(90, 40)  # حجم ثابت أصغر
+        install_btn.setFixedSize(140, 50)  # حجم ثابت أصغر
         install_btn.setStyleSheet(f"""
             QPushButton {{
                 font-family: {Fonts.DECORATIVE};
