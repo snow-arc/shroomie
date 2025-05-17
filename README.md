@@ -48,9 +48,7 @@ Shroomie is a user-friendly AUR (Arch User Repository) package manager that prov
 
 ## 🔧 Installation
 
-<div align="center">
-  <img src="/api/placeholder/200/200" alt="Installation" />
-</div>
+
 
 ### Prerequisites
 - Arch Linux or Arch-based distribution
@@ -158,85 +156,12 @@ graph TD
 
 </div>
 
-## 📷 Screenshots
-
-<div align="center">
-  <table>
-    <tr>
-      <td><img src="/api/placeholder/400/250" alt="Main Interface" /></td>
-      <td><img src="/api/placeholder/400/250" alt="Package Search" /></td>
-    </tr>
-    <tr>
-      <td align="center"><i>Main Interface</i></td>
-      <td align="center"><i>Package Search</i></td>
-    </tr>
-    <tr>
-      <td><img src="/api/placeholder/400/250" alt="Package Installation" /></td>
-      <td><img src="/api/placeholder/400/250" alt="Settings Screen" /></td>
-    </tr>
-    <tr>
-      <td align="center"><i>Package Installation</i></td>
-      <td align="center"><i>Settings Screen</i></td>
-    </tr>
-  </table>
-</div>
-
-## 📊 Why Choose Shroomie?
-
-<div align="center">
-  <table>
-    <tr>
-      <th>Feature</th>
-      <th>Shroomie</th>
-      <th>Pamac</th>
-      <th>Yay (CLI)</th>
-    </tr>
-    <tr>
-      <td>GUI Interface</td>
-      <td>✅</td>
-      <td>✅</td>
-      <td>❌</td>
-    </tr>
-    <tr>
-      <td>Pixel Art Design</td>
-      <td>✅</td>
-      <td>❌</td>
-      <td>❌</td>
-    </tr>
-    <tr>
-      <td>Lightweight</td>
-      <td>✅</td>
-      <td>❌</td>
-      <td>✅</td>
-    </tr>
-    <tr>
-      <td>Fast Operations</td>
-      <td>✅</td>
-      <td>⚠️</td>
-      <td>✅</td>
-    </tr>
-    <tr>
-      <td>Dependency Visualization</td>
-      <td>✅</td>
-      <td>❌</td>
-      <td>⚠️</td>
-    </tr>
-  </table>
-</div>
 
 ## 🤝 Contributing
 
-<div align="center">
-  <img src="/api/placeholder/200/120" alt="Contributing" />
-</div>
-
 Contributions are welcome! Here's how you can help:
 
-1. **Fork the repository**
-2. **Create your feature branch**: `git checkout -b feature/amazing-feature`
-3. **Commit your changes**: `git commit -m 'Add some amazing feature'`
-4. **Push to the branch**: `git push origin feature/amazing-feature`
-5. **Open a Pull Request**
+1. **Later**
 
 ### Development Setup
 
@@ -252,14 +177,7 @@ pip install -r requirements-dev.txt
 python -m shroomie.main
 ```
 
-### Code Style
 
-We follow the PEP 8 style guide. Please run `black` and `flake8` before submitting:
-
-```bash
-black .
-flake8
-```
 
 
 
