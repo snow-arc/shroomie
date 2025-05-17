@@ -8,33 +8,31 @@ Features:
 - Safe package removal
 """
 
+from typing import List, Dict, Any
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QScrollArea, 
-                            QPushButton, QHBoxLayout, QLineEdit, QMessageBox)
+                            QPushButton, QHBoxLayout, QLineEdit, QMessageBox, QLayoutItem)
 from PyQt6.QtCore import Qt, QProcess
 from models.package import Package
 from utils.themes.colors import ThemeColors
 from utils.themes.fonts import Fonts
-from services.aur_storage import AurPackageStorage  # Add this import
+from services.aur_storage import AurPackageStorage
 from services.page_communicator import PageCommunicator
 
 class DeletePage(QWidget):
     """Package deletion page with search functionality"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.communicator = PageCommunicator.instance()  # Use instance method
+        self.communicator = PageCommunicator.instance()
         self.communicator.refreshNeeded.connect(self.refresh_packages)
         self.aur_storage = AurPackageStorage()
-        # Load real packages from storage
-        stored_packages = self.aur_storage.get_all_packages()
-        self.all_packages = [
-            Package(name, data["version"], data.get("description", ""))
-            for name, data in stored_packages.items()
-        ]
-        self.displayed_packages = self.all_packages.copy()
-        self.initUI()
+        self.process: QProcess | None = None
         
-    def initUI(self):
+        # Load initial packages from storage
+        self.refresh_packages()
+        self.initUI()
+
+    def initUI(self) -> None:
         """Initialize the user interface"""
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(20, 20, 20, 20)
@@ -54,7 +52,7 @@ class DeletePage(QWidget):
         
         self.setLayout(main_layout)
         
-    def create_header(self):
+    def create_header(self) -> QWidget:
         """Create warning header section"""
         container = QWidget()
         container.setStyleSheet(f"""
@@ -94,8 +92,8 @@ class DeletePage(QWidget):
         
         return container
     
-    def create_search_section(self):
-        """Create search input section"""
+    def create_search_section(self) -> QWidget:
+        """Create search and refresh section"""
         container = QWidget()
         container.setStyleSheet(f"""
             QWidget {{
@@ -113,7 +111,7 @@ class DeletePage(QWidget):
         # Search input
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search installed packages...")
-        self.search_input.setMinimumHeight(40)
+        self.search_input.textChanged.connect(self.filter_packages)
         self.search_input.setStyleSheet(f"""
             QLineEdit {{
                 font-family: {Fonts.DECORATIVE};
@@ -123,19 +121,15 @@ class DeletePage(QWidget):
                 border: 2px solid {ThemeColors.LIGHT};
                 border-radius: 8px;
                 padding: 8px 15px;
-            }}
-            QLineEdit:focus {{
-                border-color: {ThemeColors.HIGHLIGHT};
-                background: {ThemeColors.DARK};
+                min-height: 40px;
             }}
         """)
-        self.search_input.textChanged.connect(self.filter_packages)
         
-        # Search button
-        search_btn = QPushButton("🔍 Search")
-        search_btn.setMinimumHeight(40)
-        search_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        search_btn.setStyleSheet(f"""
+        # Refresh button
+        refresh_btn = QPushButton("🔄 Refresh")
+        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        refresh_btn.clicked.connect(self.manual_refresh)
+        refresh_btn.setStyleSheet(f"""
             QPushButton {{
                 font-family: {Fonts.DECORATIVE};
                 font-size: {Fonts.MEDIUM}px;
@@ -145,21 +139,21 @@ class DeletePage(QWidget):
                 border-radius: 8px;
                 padding: 8px 25px;
                 min-width: 120px;
+                min-height: 40px;
             }}
             QPushButton:hover {{
                 background: {ThemeColors.LIGHT};
-                border-color: {ThemeColors.WARNING};
-                color: {ThemeColors.WARNING};
+                border-color: {ThemeColors.HIGHLIGHT};
+                color: {ThemeColors.HIGHLIGHT};
             }}
         """)
-        search_btn.clicked.connect(self.filter_packages)
         
         layout.addWidget(self.search_input, stretch=1)
-        layout.addWidget(search_btn)
+        layout.addWidget(refresh_btn)
         
         return container
-    
-    def create_packages_section(self):
+
+    def create_packages_section(self) -> QScrollArea:
         """Create scrollable packages list section"""
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -189,7 +183,7 @@ class DeletePage(QWidget):
         scroll.setWidget(content)
         return scroll
     
-    def filter_packages(self):
+    def filter_packages(self) -> None:
         """Filter packages based on search text"""
         search_text = self.search_input.text().lower()
         self.displayed_packages = [
@@ -198,11 +192,11 @@ class DeletePage(QWidget):
         ]
         self.display_packages()
     
-    def display_packages(self):
+    def display_packages(self) -> None:
         """Display filtered packages in the list"""
         # Clear current list
         while self.packages_layout.count():
-            item = self.packages_layout.takeAt(0)
+            item: QLayoutItem = self.packages_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         
@@ -226,7 +220,7 @@ class DeletePage(QWidget):
         for pkg in self.displayed_packages:
             self.add_package_item(pkg)
     
-    def add_package_item(self, pkg):
+    def add_package_item(self, pkg: Package) -> None:
         """Create and add a package item to the list"""
         item = QWidget()
         item.setMaximumHeight(80)  # Limit height
@@ -285,7 +279,7 @@ class DeletePage(QWidget):
         layout.addWidget(delete_btn)
         self.packages_layout.addWidget(item)
 
-    def delete_package(self, item, package_name):
+    def delete_package(self, item: QWidget, package_name: str) -> None:
         """Handle package deletion"""
         # Confirm deletion
         confirm = QMessageBox.question(
@@ -332,19 +326,27 @@ class DeletePage(QWidget):
             )
             self.process.start('yay', ['-Rdd', '--noconfirm', package_name])
 
-    def refresh_packages(self):
-        """Refresh package list"""
+    def manual_refresh(self) -> None:
+        """Handle manual refresh request"""
+        # First sync with system to get latest changes
+        self.aur_storage.sync_with_system()
+        # Then refresh the display
+        self.refresh_packages()
+
+    def refresh_packages(self) -> None:
+        """Refresh package list from storage"""
         stored_packages = self.aur_storage.get_all_packages()
         self.all_packages = [
             Package(name, data["version"], data.get("description", ""))
             for name, data in stored_packages.items()
         ]
         self.displayed_packages = self.all_packages.copy()
-        self.display_packages()
+        if hasattr(self, 'packages_layout'):
+            self.display_packages()
 
-    def handle_deletion_complete(self, item, package_name):
+    def handle_deletion_complete(self, item: QWidget, package_name: str) -> None:
         """Handle package deletion completion"""
-        if self.process.exitCode() == 0:
+        if self.process and self.process.exitCode() == 0:
             try:
                 # Remove from storage
                 self.aur_storage.remove_package(package_name)

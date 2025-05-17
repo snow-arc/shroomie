@@ -1,8 +1,17 @@
 import os
 import sys
 
+def get_resource_path():
+    # Get the path to the directory containing the script/executable
+    if getattr(sys, 'frozen', False):
+        # If the application is run as a bundle (PyInstaller)
+        return os.path.dirname(sys.executable)
+    else:
+        # If the application is run from a Python interpreter
+        return os.path.dirname(os.path.abspath(__file__))
+
 # Add project root to Python path for absolute imports
-project_root = os.path.dirname(os.path.abspath(__file__))
+project_root = get_resource_path()
 sys.path.insert(0, project_root)
 
 from PyQt6.QtWidgets import QApplication

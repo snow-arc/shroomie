@@ -5,6 +5,7 @@ Provides real-time AUR package search functionality.
 
 from typing import List
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtCore import Qt
 from services.aur_storage import AurPackageStorage
 from services.page_communicator import PageCommunicator
 from .search_section import SearchSection
@@ -18,6 +19,7 @@ class AurPage(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.aur_storage = AurPackageStorage()
+        self.package_provider = PackageProvider()
         self.communicator = PageCommunicator.instance()
         
         # Connect signals for updates
@@ -25,9 +27,8 @@ class AurPage(QWidget):
         self.communicator.packageDeleted.connect(self.refresh_packages)
         self.communicator.refreshNeeded.connect(self.refresh_packages)
         
-        self.package_provider = PackageProvider()
-        self.refresh_packages()  # Load initial packages
         self.initUI()
+        self.refresh_packages()  # Load initial packages
     
     def initUI(self) -> None:
         """Setup the user interface components"""
@@ -38,41 +39,35 @@ class AurPage(QWidget):
         # Create search section
         self.search_section = SearchSection()
         self.search_section.searchRequested.connect(self._on_search)
+        self.search_section.refreshRequested.connect(self.manual_refresh)
         main_layout.addWidget(self.search_section)
         
         # Create results grid
         self.results_grid = ResultsGrid()
         main_layout.addWidget(self.results_grid)
-        
-        # Initial display
-        self.results_grid.update_display(self.displayed_packages)
     
+    def manual_refresh(self) -> None:
+        """Handle manual refresh request"""
+        # First sync with system to get latest changes
+        self.aur_storage.sync_with_system()
+        # Then refresh the display
+        self.refresh_packages()
+
     def refresh_packages(self) -> None:
         """Refresh package list from storage"""
         stored_packages = self.aur_storage.get_all_packages()
-        self.all_packages = [
+        self.package_provider.update_packages([
             Package(
                 name=name,
                 version=data["version"],
-                repo=data.get("repo", "AUR"),  # Add repo parameter
-                description=data.get("description", "")
+                description=data.get("description", ""),
+                repo=data.get("repo", "AUR")
             )
             for name, data in stored_packages.items()
-        ]
-        self.displayed_packages = self.all_packages.copy()
-        
-        # Update display if UI is initialized
-        if hasattr(self, 'results_grid'):
-            self.results_grid.update_display(self.displayed_packages)
+        ])
+        self.results_grid.update_display(self.package_provider.get_all_packages())
 
     def _on_search(self, search_text: str) -> None:
-        """Handle search requests."""
-        if not search_text:
-            self.displayed_packages = self.all_packages.copy()
-        else:
-            self.displayed_packages = [
-                pkg for pkg in self.all_packages
-                if search_text.lower() in pkg.name.lower() or
-                   search_text.lower() in pkg.description.lower()
-            ]
-        self.results_grid.update_display(self.displayed_packages)
+        """Handle search requests"""
+        packages = self.package_provider.filter_packages(search_text)
+        self.results_grid.update_display(packages)

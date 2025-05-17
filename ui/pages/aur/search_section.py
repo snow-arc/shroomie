@@ -11,6 +11,7 @@ class SearchSection(QWidget):
     """Search section with header and search controls."""
     
     searchRequested = pyqtSignal(str)
+    refreshRequested = pyqtSignal()
     
     def __init__(self):
         super().__init__()
@@ -46,7 +47,7 @@ class SearchSection(QWidget):
         layout.addWidget(controls)
     
     def _create_search_controls(self):
-        """Create search input and button."""
+        """Create search input and buttons."""
         controls = QWidget()
         controls_layout = QHBoxLayout(controls)
         controls_layout.setContentsMargins(0, 0, 0, 0)
@@ -71,7 +72,7 @@ class SearchSection(QWidget):
                 background: {ThemeColors.DARK};
             }}
         """)
-        self.search_input.textChanged.connect(self._on_search)
+        self.search_input.returnPressed.connect(self._emit_search)
         
         # Search button
         search_btn = QPushButton("🔎 Search")
@@ -94,14 +95,37 @@ class SearchSection(QWidget):
                 color: {ThemeColors.HIGHLIGHT};
             }}
         """)
-        search_btn.clicked.connect(self._on_search)
+        search_btn.clicked.connect(self._emit_search)
+        
+        # Refresh button
+        refresh_btn = QPushButton("🔄 Refresh")
+        refresh_btn.setMinimumHeight(45)
+        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        refresh_btn.setStyleSheet(f"""
+            QPushButton {{
+                font-family: {Fonts.DECORATIVE};
+                font-size: {Fonts.MEDIUM}px;
+                color: {ThemeColors.TEXT};
+                background: {ThemeColors.MEDIUM};
+                border: 3px solid {ThemeColors.LIGHT};
+                border-radius: 8px;
+                padding: 8px 25px;
+                min-width: 140px;
+            }}
+            QPushButton:hover {{
+                background: {ThemeColors.LIGHT};
+                border-color: {ThemeColors.HIGHLIGHT};
+                color: {ThemeColors.HIGHLIGHT};
+            }}
+        """)
+        refresh_btn.clicked.connect(self.refreshRequested.emit)
         
         controls_layout.addWidget(self.search_input, stretch=1)
         controls_layout.addWidget(search_btn)
+        controls_layout.addWidget(refresh_btn)
         
         return controls
     
-    def _on_search(self):
+    def _emit_search(self):
         """Emit search signal with current input text."""
-        search_text = self.search_input.text()
-        self.searchRequested.emit(search_text)
+        self.searchRequested.emit(self.search_input.text())
