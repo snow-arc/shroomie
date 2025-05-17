@@ -1,14 +1,29 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout, QScrollArea, QPushButton
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout, QScrollArea, QPushButton, QMessageBox
 from PyQt6.QtCore import Qt
 from models.package import Package
 from utils.styles import *
+from utils.system_checks import check_yay_installation
+from typing import List
 
 class DownloadPage(QWidget):
     def __init__(self):
         super().__init__()
-        self.packages = [Package(f"Downloadable {i}", "1.0.0", "main") for i in range(8)]
+        self.packages: List[Package] = [Package(f"Downloadable {i}", "1.0.0", "main") for i in range(8)]
+        self.check_dependencies()
         self.initUI()
         
+    def check_dependencies(self):
+        """Check if required dependencies (yay) are installed"""
+        is_yay_installed, install_message = check_yay_installation()
+        if not is_yay_installed:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setWindowTitle("Missing Dependencies")
+            msg.setText("yay is not installed")
+            msg.setInformativeText("Some features will be limited without yay.")
+            msg.setDetailedText(install_message)
+            msg.exec()
+    
     def initUI(self):
         main_layout = QVBoxLayout()
         title = QLabel("Available Packages")
@@ -32,7 +47,7 @@ class DownloadPage(QWidget):
         main_layout.addWidget(scroll)
         self.setLayout(main_layout)
     
-    def create_download_card(self, pkg):
+    def create_download_card(self, pkg: Package) -> QWidget:
         card = QWidget()
         card.setFixedSize(400, 120)
         card.setStyleSheet(download_card_style)
@@ -57,6 +72,13 @@ class DownloadPage(QWidget):
         # Right side install button
         install_btn = QPushButton("⬇️ Install")
         install_btn.setFixedSize(100, 28)  # Comfortable height with smaller width
+        
+        # Check if yay is available
+        is_yay_installed, _ = check_yay_installation()
+        if not is_yay_installed and pkg.repo.lower() == "aur":
+            install_btn.setEnabled(False)
+            install_btn.setToolTip("yay is required to install AUR packages")
+        
         install_btn.setStyleSheet(f"""
             QPushButton {{
                 font-family: {FONT_FAMILY};
@@ -71,6 +93,11 @@ class DownloadPage(QWidget):
                 background: {colors['light']};
                 border-color: {colors['highlight']};
                 color: {colors['highlight']};
+            }}
+            QPushButton:disabled {{
+                background: {colors['dark']};
+                border-color: {colors['medium']};
+                color: {colors['medium']};
             }}
         """)
         
