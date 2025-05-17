@@ -45,7 +45,7 @@ Shroomie is a user-friendly AUR (Arch User Repository) package manager that prov
     </tr>
   </table>
 </div>
-
+ل
 ## 📸 Screenshots
 
 <div align="center">
