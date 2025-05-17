@@ -46,6 +46,18 @@ Shroomie is a user-friendly AUR (Arch User Repository) package manager that prov
   </table>
 </div>
 
+## 📸 Screenshots
+
+<div align="center">
+  <img src="components/pic/swappy-20250517-213800.png" alt="Shroomie Screenshot 1" width="600"/>
+  <br/><br/>
+  <img src="components/pic/swappy-20250517-213832.png" alt="Shroomie Screenshot 2" width="600"/>
+  <br/><br/>
+  <img src="components/pic/swappy-20250517-213841.png" alt="Shroomie Screenshot 3" width="600"/>
+  <br/><br/>
+  <img src="components/pic/swappy-20250517-214333.png" alt="Shroomie Screenshot 4" width="600"/>
+</div>
+
 ## 🔧 Installation
 
 
@@ -159,7 +171,7 @@ graph TD
 
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
+Contributions are welcome!
 
 1. **Later**
 
